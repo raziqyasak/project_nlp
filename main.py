@@ -2,6 +2,7 @@ import streamlit as st
 import pickle
 import re
 import nltk
+import os
 
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -10,10 +11,26 @@ nltk.download('stopwords')
 nltk.download('wordnet')
 
 # ===============================
-# Load Model & Vectorizer
+# FIX FILE PATH (IMPORTANT!)
 # ===============================
-model = pickle.load(open("model.pkl", "rb"))
-vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+MODEL_PATH = os.path.join(BASE_DIR, "model.pkl")
+VECTORIZER_PATH = os.path.join(BASE_DIR, "vectorizer.pkl")
+
+# Debug: show files in folder (helpful)
+st.write("📂 Files in directory:", os.listdir(BASE_DIR))
+
+# ===============================
+# Load Model & Vectorizer Safely
+# ===============================
+try:
+    model = pickle.load(open(MODEL_PATH, "rb"))
+    vectorizer = pickle.load(open(VECTORIZER_PATH, "rb"))
+except Exception as e:
+    st.error("❌ Model files not found!")
+    st.error(str(e))
+    st.stop()
 
 # ===============================
 # Text Cleaning
