@@ -49,7 +49,9 @@ def train_model(fake_file, true_file):
     X = vectorizer.fit_transform(df['clean_text'])
     y = df['label']
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
     model = MultinomialNB()
     model.fit(X_train, y_train)
@@ -68,6 +70,9 @@ def train_model(fake_file, true_file):
 st.set_page_config(page_title="Fake News Detection", layout="centered")
 st.title("📰 Fake News Detection System")
 
+# -------------------------------
+# Sidebar: Upload & Train
+# -------------------------------
 st.sidebar.header("⚙️ Upload Dataset and Train Model")
 fake_file = st.sidebar.file_uploader("Upload Fake News CSV", type=["csv"])
 true_file = st.sidebar.file_uploader("Upload True News CSV", type=["csv"])
@@ -80,9 +85,9 @@ if st.sidebar.button("Train Model"):
     else:
         st.sidebar.warning("⚠️ Please upload both Fake and True CSV files.")
 
-# ===============================
-# Load Model if already exists
-# ===============================
+# -------------------------------
+# Load Model if exists
+# -------------------------------
 if os.path.exists("model.pkl") and os.path.exists("vectorizer.pkl"):
     model = pickle.load(open("model.pkl", "rb"))
     vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
@@ -90,9 +95,9 @@ else:
     st.warning("⚠️ Model not trained yet. Please upload dataset and train using sidebar.")
     st.stop()
 
-# ===============================
+# -------------------------------
 # Prediction Section
-# ===============================
+# -------------------------------
 st.subheader("Enter a news article to check:")
 news_text = st.text_area("News Text", height=200)
 
@@ -110,23 +115,29 @@ if st.button("Check News"):
         else:
             st.error(f"❌ FAKE News ({probability:.2f}%)")
 
-        # ===============================
-        # Reason / Explanation
-        # ===============================
+        # -------------------------------
+        # Reason / Explanation (dynamic)
+        # -------------------------------
         st.subheader("Reason for Prediction:")
 
-        # Get feature names
         feature_names = np.array(vectorizer.get_feature_names_out())
-        # Get probabilities for both classes
         log_prob = model.feature_log_prob_
-
-        # Select class index
         class_idx = prediction  # 0 = Fake, 1 = Real
 
-        # Get top 5 words contributing to this class
-        vector = vectorized.toarray()[0]
-        word_scores = log_prob[class_idx] * vector
-        top_indices = word_scores.argsort()[-5:][::-1]
-        top_words = feature_names[top_indices]
+        words_in_text = cleaned.split()
+        words_in_vocab = [w for w in words_in_text if w in feature_names]
 
-        st.write(f"Top words influencing this prediction: **{', '.join(top_words)}**")
+        word_influence = {}
+        for w in words_in_vocab:
+            idx = np.where(feature_names == w)[0][0]
+            word_influence[w] = log_prob[class_idx][idx]
+
+        # Sort by influence
+        top_words = sorted(word_influence, key=word_influence.get, reverse=True)[:5]
+
+        if len(top_words) > 0:
+            st.write(
+                f"This news is predicted as **{'REAL' if prediction==1 else 'FAKE'}** because it contains keywords like: **{', '.join(top_words)}**"
+            )
+        else:
+            st.write("No strong keywords found in this text to explain prediction.")
