@@ -20,8 +20,8 @@ nltk.download('wordnet')
 # ===============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-FAKE_PATH = os.path.join(BASE_DIR, "Fake-news.csv")
-TRUE_PATH = os.path.join(BASE_DIR, "True-news.csv")
+FAKE_PATH = os.path.join(BASE_DIR, "Fake_cleaned.csv")
+TRUE_PATH = os.path.join(BASE_DIR, "True_cleaned.csv")
 MODEL_PATH = os.path.join(BASE_DIR, "model.pkl")
 VECTORIZER_PATH = os.path.join(BASE_DIR, "vectorizer.pkl")
 
