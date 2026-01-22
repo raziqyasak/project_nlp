@@ -5,7 +5,7 @@ import re
 import nltk
 import os
 import numpy as np
-import plotly.express as px
+import matplotlib.pyplot as plt
 
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -42,7 +42,7 @@ def train_model(fake_file, true_file):
     fake['label'] = 0
     true['label'] = 1
 
-    # Combine title + content if exists
+    # Combine title + content if title exists
     if 'title' in fake.columns and 'title' in true.columns:
         fake['text'] = fake['title'] + " " + fake['text']
         true['text'] = true['title'] + " " + true['text']
@@ -130,14 +130,13 @@ if st.button("Check News"):
         # Pie Chart for probability
         # -------------------------------
         labels = ['FAKE', 'REAL']
-        fig = px.pie(
-            names=labels,
-            values=proba,
-            color=labels,
-            color_discrete_map={'FAKE':'red', 'REAL':'green'},
-            title="Prediction Probability"
-        )
-        st.plotly_chart(fig)
+        sizes = proba
+        colors = ['red', 'green']
+
+        fig, ax = plt.subplots()
+        ax.pie(sizes, labels=labels, autopct='%1.1f%%', colors=colors)
+        ax.set_title("Prediction Probability")
+        st.pyplot(fig)
 
         # -------------------------------
         # Reason / Explanation (dynamic)
