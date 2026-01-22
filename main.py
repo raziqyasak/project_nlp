@@ -2,6 +2,7 @@ import streamlit as st
 import pickle
 import re
 import nltk
+
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
@@ -9,13 +10,13 @@ nltk.download('stopwords')
 nltk.download('wordnet')
 
 # ===============================
-# Load trained model & vectorizer
+# Load Model & Vectorizer
 # ===============================
-model = pickle.load(open('model.pkl', 'rb'))
-vectorizer = pickle.load(open('vectorizer.pkl', 'rb'))
+model = pickle.load(open("model.pkl", "rb"))
+vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
 
 # ===============================
-# Text Cleaning Function
+# Text Cleaning
 # ===============================
 stop_words = set(stopwords.words('english'))
 lemmatizer = WordNetLemmatizer()
@@ -26,7 +27,7 @@ def clean_text(text):
     text = re.sub(r'<.*?>', '', text)
     text = re.sub(r'[^a-z\s]', '', text)
     words = text.split()
-    words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
+    words = [lemmatizer.lemmatize(w) for w in words if w not in stop_words]
     return ' '.join(words)
 
 # ===============================
@@ -35,25 +36,23 @@ def clean_text(text):
 st.set_page_config(page_title="Fake News Detection", layout="centered")
 
 st.title("📰 Fake News Detection System")
-st.write("Enter a news article below to check whether it is **Fake** or **Real**.")
+st.write("Enter a news article to check whether it is **FAKE** or **REAL**.")
 
-# Text input
-user_input = st.text_area("News Article Text", height=200)
+news_text = st.text_area("News Text", height=200)
 
-# Predict button
 if st.button("Check News"):
-    if user_input.strip() == "":
+    if news_text.strip() == "":
         st.warning("⚠️ Please enter some text.")
     else:
-        cleaned_text = clean_text(user_input)
-        vectorized_text = vectorizer.transform([cleaned_text])
-        prediction = model.predict(vectorized_text)[0]
+        cleaned = clean_text(news_text)
+        vectorized = vectorizer.transform([cleaned])
+        prediction = model.predict(vectorized)[0]
+        probability = model.predict_proba(vectorized).max() * 100
 
         if prediction == 1:
-            st.success("✅ This news is **REAL**")
+            st.success(f"✅ REAL News ({probability:.2f}%)")
         else:
-            st.error("❌ This news is **FAKE**")
+            st.error(f"❌ FAKE News ({probability:.2f}%)")
 
-# Footer
 st.markdown("---")
-st.caption("NLP Project | Fake News Detection using Streamlit")
+st.caption("NLP Individual Project | Fake News Detection")
