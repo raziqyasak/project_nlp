@@ -5,6 +5,7 @@ import re
 import nltk
 import os
 import numpy as np
+import plotly.express as px
 
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -40,6 +41,11 @@ def train_model(fake_file, true_file):
 
     fake['label'] = 0
     true['label'] = 1
+
+    # Combine title + content if exists
+    if 'title' in fake.columns and 'title' in true.columns:
+        fake['text'] = fake['title'] + " " + fake['text']
+        true['text'] = true['title'] + " " + true['text']
 
     df = pd.concat([fake, true])
     df = df[['text', 'label']].dropna()
@@ -99,21 +105,39 @@ else:
 # Prediction Section
 # -------------------------------
 st.subheader("Enter a news article to check:")
-news_text = st.text_area("News Text", height=200)
+news_title = st.text_input("News Title")
+news_text = st.text_area("News Content", height=200)
 
 if st.button("Check News"):
     if news_text.strip() == "":
-        st.warning("⚠️ Please enter some text.")
+        st.warning("⚠️ Please enter some content.")
     else:
-        cleaned = clean_text(news_text)
+        # Combine title + content
+        full_text = news_title + " " + news_text
+        cleaned = clean_text(full_text)
         vectorized = vectorizer.transform([cleaned])
         prediction = model.predict(vectorized)[0]
-        probability = model.predict_proba(vectorized).max() * 100
+        proba = model.predict_proba(vectorized)[0]
+        probability = proba.max() * 100
 
+        # Display prediction
         if prediction == 1:
             st.success(f"✅ REAL News ({probability:.2f}%)")
         else:
             st.error(f"❌ FAKE News ({probability:.2f}%)")
+
+        # -------------------------------
+        # Pie Chart for probability
+        # -------------------------------
+        labels = ['FAKE', 'REAL']
+        fig = px.pie(
+            names=labels,
+            values=proba,
+            color=labels,
+            color_discrete_map={'FAKE':'red', 'REAL':'green'},
+            title="Prediction Probability"
+        )
+        st.plotly_chart(fig)
 
         # -------------------------------
         # Reason / Explanation (dynamic)
@@ -132,7 +156,6 @@ if st.button("Check News"):
             idx = np.where(feature_names == w)[0][0]
             word_influence[w] = log_prob[class_idx][idx]
 
-        # Sort by influence
         top_words = sorted(word_influence, key=word_influence.get, reverse=True)[:5]
 
         if len(top_words) > 0:
