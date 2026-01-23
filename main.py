@@ -76,12 +76,12 @@ def train_model(fake_file, true_file):
 # Streamlit UI
 # ===============================
 st.set_page_config(page_title="Fake News Detection", layout="centered")
-st.title("📰 Fake News Detection System")
+st.title(" Fake News Detection System")
 
 # -------------------------------
 # Sidebar
 # -------------------------------
-st.sidebar.header("⚙️ Upload Dataset & Train Model")
+st.sidebar.header(" Upload Dataset & Train Model")
 fake_file = st.sidebar.file_uploader("Upload Fake News CSV", type=["csv"])
 true_file = st.sidebar.file_uploader("Upload True News CSV", type=["csv"])
 
@@ -89,18 +89,18 @@ if st.sidebar.button("Train Model"):
     if fake_file and true_file:
         with st.spinner("Training model..."):
             model, vectorizer, acc, fake_n, true_n = train_model(fake_file, true_file)
-        st.sidebar.success(f"✅ Training Completed\nAccuracy: {acc:.2f}")
-        st.sidebar.subheader("📁 Dataset Summary")
+        st.sidebar.success(f" Training Completed\nAccuracy: {acc:.2f}")
+        st.sidebar.subheader(" Dataset Summary")
         st.sidebar.write(f"Fake News: {fake_n}")
         st.sidebar.write(f"True News: {true_n}")
     else:
-        st.sidebar.warning("⚠️ Upload both Fake & True datasets")
+        st.sidebar.warning(" Upload both Fake & True datasets")
 
 # -------------------------------
 # Load Model
 # -------------------------------
 if not (os.path.exists("model.pkl") and os.path.exists("vectorizer.pkl")):
-    st.warning("⚠️ Please train the model first")
+    st.warning(" Please train the model first")
     st.stop()
 
 model = pickle.load(open("model.pkl", "rb"))
@@ -109,7 +109,7 @@ vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
 # -------------------------------
 # Prediction Section
 # -------------------------------
-st.subheader("🔍 Check News Authenticity")
+st.subheader(" Check News Authenticity")
 
 news_title = st.text_input("News Title")
 news_text = st.text_area("News Content", height=200)
@@ -120,7 +120,7 @@ if 'history' not in st.session_state:
 
 if st.button("Check News"):
     if news_text.strip() == "":
-        st.warning("⚠️ Please enter news content")
+        st.warning(" Please enter news content")
     else:
         full_text = news_title + " " + news_text
         cleaned = clean_text(full_text)
@@ -132,9 +132,9 @@ if st.button("Check News"):
 
         # Result
         if prediction == 1:
-            st.success(f"✅ REAL News ({confidence:.2f}%)")
+            st.success(f" REAL News ({confidence:.2f}%)")
         else:
-            st.error(f"❌ FAKE News ({confidence:.2f}%)")
+            st.error(f" FAKE News ({confidence:.2f}%)")
 
         # Confidence Level
         if confidence > 85:
@@ -146,7 +146,7 @@ if st.button("Check News"):
         else:
             level = "Low"
 
-        st.info(f"📊 Confidence Level: **{level}**")
+        st.info(f" Confidence Level: **{level}**")
 
         # -------------------------------
         # Pie Chart
@@ -160,7 +160,7 @@ if st.button("Check News"):
         # -------------------------------
         # Explanation (Keywords)
         # -------------------------------
-        st.subheader("🧠 Reason for Prediction")
+        st.subheader(" Reason for Prediction")
 
         feature_names = np.array(vectorizer.get_feature_names_out())
         log_prob = model.feature_log_prob_
@@ -194,7 +194,7 @@ if st.button("Check News"):
 
         detected = [w for w in sensational_words if w in cleaned]
         if detected:
-            st.warning(f"⚠️ Sensational words detected: **{', '.join(detected)}**")
+            st.warning(f" Sensational words detected: **{', '.join(detected)}**")
 
         # -------------------------------
         # Save History
@@ -209,5 +209,5 @@ if st.button("Check News"):
 # Prediction History Table
 # -------------------------------
 if st.session_state.history:
-    st.subheader("📜 Prediction History")
+    st.subheader(" Prediction History")
     st.table(pd.DataFrame(st.session_state.history))
