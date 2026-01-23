@@ -14,15 +14,18 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score
 
+# ===============================
+# NLTK Setup
+# ===============================
 nltk.download('stopwords')
 nltk.download('wordnet')
+
+stop_words = set(stopwords.words('english'))
+lemmatizer = WordNetLemmatizer()
 
 # ===============================
 # Text Cleaning
 # ===============================
-stop_words = set(stopwords.words('english'))
-lemmatizer = WordNetLemmatizer()
-
 def clean_text(text):
     text = str(text).lower()
     text = re.sub(r'http\S+|www\S+', '', text)
@@ -33,7 +36,7 @@ def clean_text(text):
     return ' '.join(words)
 
 # ===============================
-# Train Model Function
+# Train Model
 # ===============================
 def train_model(fake_file, true_file):
     fake = pd.read_csv(fake_file)
@@ -42,7 +45,7 @@ def train_model(fake_file, true_file):
     fake['label'] = 0
     true['label'] = 1
 
-    # Combine title + content if title exists
+    # Combine title + text if title exists
     if 'title' in fake.columns and 'title' in true.columns:
         fake['text'] = fake['title'] + " " + fake['text']
         true['text'] = true['title'] + " " + true['text']
@@ -62,13 +65,12 @@ def train_model(fake_file, true_file):
     model = MultinomialNB()
     model.fit(X_train, y_train)
 
-    acc = accuracy_score(y_test, model.predict(X_test))
+    accuracy = accuracy_score(y_test, model.predict(X_test))
 
-    # Save model & vectorizer
     pickle.dump(model, open("model.pkl", "wb"))
     pickle.dump(vectorizer, open("vectorizer.pkl", "wb"))
 
-    return model, vectorizer, acc
+    return model, vectorizer, accuracy, len(fake), len(true)
 
 # ===============================
 # Streamlit UI
@@ -77,89 +79,135 @@ st.set_page_config(page_title="Fake News Detection", layout="centered")
 st.title("📰 Fake News Detection System")
 
 # -------------------------------
-# Sidebar: Upload & Train
+# Sidebar
 # -------------------------------
-st.sidebar.header("⚙️ Upload Dataset and Train Model")
+st.sidebar.header("⚙️ Upload Dataset & Train Model")
 fake_file = st.sidebar.file_uploader("Upload Fake News CSV", type=["csv"])
 true_file = st.sidebar.file_uploader("Upload True News CSV", type=["csv"])
 
 if st.sidebar.button("Train Model"):
     if fake_file and true_file:
         with st.spinner("Training model..."):
-            model, vectorizer, accuracy = train_model(fake_file, true_file)
-        st.sidebar.success(f"✅ Model trained!\nAccuracy: {accuracy:.2f}")
+            model, vectorizer, acc, fake_n, true_n = train_model(fake_file, true_file)
+        st.sidebar.success(f"✅ Training Completed\nAccuracy: {acc:.2f}")
+        st.sidebar.subheader("📁 Dataset Summary")
+        st.sidebar.write(f"Fake News: {fake_n}")
+        st.sidebar.write(f"True News: {true_n}")
     else:
-        st.sidebar.warning("⚠️ Please upload both Fake and True CSV files.")
+        st.sidebar.warning("⚠️ Upload both Fake & True datasets")
 
 # -------------------------------
-# Load Model if exists
+# Load Model
 # -------------------------------
-if os.path.exists("model.pkl") and os.path.exists("vectorizer.pkl"):
-    model = pickle.load(open("model.pkl", "rb"))
-    vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
-else:
-    st.warning("⚠️ Model not trained yet. Please upload dataset and train using sidebar.")
+if not (os.path.exists("model.pkl") and os.path.exists("vectorizer.pkl")):
+    st.warning("⚠️ Please train the model first")
     st.stop()
+
+model = pickle.load(open("model.pkl", "rb"))
+vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
 
 # -------------------------------
 # Prediction Section
 # -------------------------------
-st.subheader("Enter a news article to check:")
+st.subheader("🔍 Check News Authenticity")
+
 news_title = st.text_input("News Title")
 news_text = st.text_area("News Content", height=200)
 
+# Prediction History
+if 'history' not in st.session_state:
+    st.session_state.history = []
+
 if st.button("Check News"):
     if news_text.strip() == "":
-        st.warning("⚠️ Please enter some content.")
+        st.warning("⚠️ Please enter news content")
     else:
-        # Combine title + content
         full_text = news_title + " " + news_text
         cleaned = clean_text(full_text)
+
         vectorized = vectorizer.transform([cleaned])
         prediction = model.predict(vectorized)[0]
         proba = model.predict_proba(vectorized)[0]
-        probability = proba.max() * 100
+        confidence = proba.max() * 100
 
-        # Display prediction
+        # Result
         if prediction == 1:
-            st.success(f"✅ REAL News ({probability:.2f}%)")
+            st.success(f"✅ REAL News ({confidence:.2f}%)")
         else:
-            st.error(f"❌ FAKE News ({probability:.2f}%)")
+            st.error(f"❌ FAKE News ({confidence:.2f}%)")
+
+        # Confidence Level
+        if confidence > 85:
+            level = "Very High"
+        elif confidence > 70:
+            level = "High"
+        elif confidence > 55:
+            level = "Medium"
+        else:
+            level = "Low"
+
+        st.info(f"📊 Confidence Level: **{level}**")
 
         # -------------------------------
-        # Pie Chart for probability
+        # Pie Chart
         # -------------------------------
         labels = ['FAKE', 'REAL']
-        sizes = proba
-        colors = ['red', 'green']
-
         fig, ax = plt.subplots()
-        ax.pie(sizes, labels=labels, autopct='%1.1f%%', colors=colors)
+        ax.pie(proba, labels=labels, autopct='%1.1f%%')
         ax.set_title("Prediction Probability")
         st.pyplot(fig)
 
         # -------------------------------
-        # Reason / Explanation (dynamic)
+        # Explanation (Keywords)
         # -------------------------------
-        st.subheader("Reason for Prediction:")
+        st.subheader("🧠 Reason for Prediction")
 
         feature_names = np.array(vectorizer.get_feature_names_out())
         log_prob = model.feature_log_prob_
-        class_idx = prediction  # 0 = Fake, 1 = Real
+        class_idx = prediction
 
-        words_in_text = cleaned.split()
-        words_in_vocab = [w for w in words_in_text if w in feature_names]
+        words = cleaned.split()
+        words = [w for w in words if w in feature_names]
 
-        word_influence = {}
-        for w in words_in_vocab:
+        influence = {}
+        for w in words:
             idx = np.where(feature_names == w)[0][0]
-            word_influence[w] = log_prob[class_idx][idx]
+            influence[w] = log_prob[class_idx][idx]
 
-        top_words = sorted(word_influence, key=word_influence.get, reverse=True)[:5]
+        top_words = sorted(influence, key=influence.get, reverse=True)[:5]
 
-        if len(top_words) > 0:
+        if top_words:
             st.write(
-                f"This news is predicted as **{'REAL' if prediction==1 else 'FAKE'}** because it contains keywords like: **{', '.join(top_words)}**"
+                f"This news is predicted as **{'REAL' if prediction==1 else 'FAKE'}** "
+                f"because it contains influential keywords such as: **{', '.join(top_words)}**"
             )
         else:
-            st.write("No strong keywords found in this text to explain prediction.")
+            st.write("No strong keywords detected.")
+
+        # -------------------------------
+        # Sensational Language Detection
+        # -------------------------------
+        sensational_words = [
+            "shocking", "unbelievable", "secret", "exposed",
+            "breaking", "miracle", "warning", "you won’t believe"
+        ]
+
+        detected = [w for w in sensational_words if w in cleaned]
+        if detected:
+            st.warning(f"⚠️ Sensational words detected: **{', '.join(detected)}**")
+
+        # -------------------------------
+        # Save History
+        # -------------------------------
+        st.session_state.history.append({
+            "Title": news_title,
+            "Prediction": "REAL" if prediction == 1 else "FAKE",
+            "Confidence (%)": f"{confidence:.2f}"
+        })
+
+# -------------------------------
+# Prediction History Table
+# -------------------------------
+if st.session_state.history:
+    st.subheader("📜 Prediction History")
+    st.table(pd.DataFrame(st.session_state.history))
