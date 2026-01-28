@@ -75,7 +75,7 @@ def train_model(fake_file, true_file):
 # Streamlit UI
 # ===============================
 st.set_page_config(page_title="Fake News Detection", layout="centered")
-st.title("📰 Fake News Detection System")
+st.title("Fake News Detection System")
 
 # -------------------------------
 # Sidebar
