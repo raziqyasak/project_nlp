@@ -4,7 +4,7 @@ import pickle
 import re
 import nltk
 import os
-import numpy as np
+import numpy as np 
 import matplotlib.pyplot as plt
 
 from nltk.corpus import stopwords
